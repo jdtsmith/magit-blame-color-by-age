@@ -1,6 +1,6 @@
 # magit-blame-color-by-age
 
-A small package to color `magit-blame` headers by their age.
+A small package to color-code `magit-blame` headers by their age.
 
 <img width="635" alt="image" src="https://github.com/user-attachments/assets/695e6906-80ab-4e8b-a975-2734b2a6edd5" />
 
