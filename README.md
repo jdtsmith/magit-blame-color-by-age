@@ -1,6 +1,6 @@
 # magit-blame-color-by-age
 
-A small package to color-code `magit-blame` headers and the fringe by their age.
+A small package to color-code `magit-blame` headers and the fringe by age.
 
 ## Screenshots
 
