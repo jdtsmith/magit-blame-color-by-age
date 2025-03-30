@@ -34,14 +34,9 @@
 (require 'magit-blame)
 (require 'magit-section)
 
-(defun mbc/-custom-set (sym val)
-  "Set SYM to VAL and redefine blame faces."
-  (set-default-toplevel-value sym val)
-  (mbc/define-faces t))
-
 (defcustom mbc/full-heading nil
   "Whether to color the background of the entire header.
-If nil, only the data within the heading is affected."
+If nil, only the date information within the heading is affected."
   :type 'boolean
   :group 'magit-blame)
 
@@ -85,6 +80,29 @@ All colors are (R G B) triples."
 	 (cl-mapcar (lambda (c1 c2) (+ (* (- 1. frac) c1) (* frac c2))) rgb1 rgb2)))
     (apply #'color-rgb-to-hex (combine back (combine from to frac) mbc/frac))))
 
+(defun mbc/define-faces (&optional redefine)
+  "Define the blame color faces, if not defined or REDEFINE is non-nil.
+Also defines the fringe bitmap."
+  (when (and (or redefine (not (facep 'mbc/0)))
+	     (boundp 'mbc/colors) (boundp 'mbc/steps))
+    (define-fringe-bitmap 'mbc/fringe-bitmap (vconcat '(0)) nil nil '(top t))
+    (let ((from-col (color-name-to-rgb (car mbc/colors)))
+	  (to-col (color-name-to-rgb (cdr mbc/colors)))
+	  (back-col (color-name-to-rgb (face-background 'magit-blame-heading))))
+      (dotimes (i mbc/steps)
+	(let ((face (intern (format "magit-blame-color-by-age-%03d" i))))
+	  (make-face face)
+	  (set-face-extend face t)
+	  (set-face-background face (mbc/-blend from-col to-col
+						(/ (float i) (1- mbc/steps))
+						back-col)))))))
+
+(defun mbc/-custom-set (sym val)
+  "Set SYM to VAL and redefine blame faces."
+  (set-default-toplevel-value sym val)
+  (when (fboundp 'mbc/define-faces)
+    (mbc/define-faces t)))
+
 (defun mbc/update (&optional beg end)
   "Update `magit-blame' headings between BEG and END with age-based colors.
 Defaults to the full buffer."
@@ -110,7 +128,8 @@ Defaults to the full buffer."
 					age-rng))))
 	  (when mbc/fringe
 	    (overlay-put ov 'line-prefix
-			 (propertize "x" 'display `((left-fringe mbc/fringe-bitmap ,face)))))
+			 (propertize "x" 'display
+				     `((left-fringe mbc/fringe-bitmap ,face)))))
 	  (when-let* ((string (cdr (assoc string-key revinfo)))
 		      ( (not (gethash string seen))))
 	    (puthash string t seen)
@@ -130,22 +149,6 @@ Defaults to the full buffer."
     (with-current-buffer (process-get process 'command-buf)
       (mbc/update)
       (font-lock-flush))))
-
-(defun mbc/define-faces (&optional redefine)
-  "Define the blame color faces, if not defined or REDEFINE is non-nil.
-Also defines the fringe bitmap."
-  (when (or redefine (not (facep 'mbc/0)))
-    (define-fringe-bitmap 'mbc/fringe-bitmap (vconcat '(0)) nil nil '(top t))
-    (let ((from-col (color-name-to-rgb (car mbc/colors)))
-	  (to-col (color-name-to-rgb (cdr mbc/colors)))
-	  (back-col (color-name-to-rgb (face-background 'magit-blame-heading))))
-      (dotimes (i mbc/steps)
-	(let ((face (intern (format "magit-blame-color-by-age-%03d" i))))
-	  (make-face face)
-	  (set-face-extend face t)
-	  (set-face-background face (mbc/-blend from-col to-col
-						(/ (float i) (1- mbc/steps))
-						back-col)))))))
 
 (define-minor-mode mbc/mode
   "Color `magit-blame' headers by age."
