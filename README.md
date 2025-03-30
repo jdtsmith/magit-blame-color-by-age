@@ -11,8 +11,7 @@ A small package to color-code `magit-blame` headers and the fringe by their age.
 <img width="514" alt="image" src="https://github.com/user-attachments/assets/8ba3154e-1425-4db1-b810-2088e980df09" />
 
 ### Full heading color
-![image](https://github.com/user-attachments/assets/43bed7ea-ef2e-4323-b99a-378c90f9c591)
-
+<img width="558" alt="image" src="https://github.com/user-attachments/assets/90120a3b-e4c9-4ad7-9450-1bcf7f76425b" />
 
 > [!NOTE]
 > Large files take some time to fully git-blame.  Magit's "quick start" shows visible blame headers quickly; these will be re-colored as the full blame completes.
