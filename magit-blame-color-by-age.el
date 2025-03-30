@@ -36,6 +36,11 @@ If nil, only the data within the heading is affected."
   :type 'boolean
   :group 'magit-blame)
 
+(defcustom mbc/fringe t
+  "Whether to color the fringe of the block."
+  :type 'boolean
+  :group 'magit-blame)
+
 (defcustom mbc/colors (cons "blue" "red")
   "Color name for ages, from oldest to newest.
 These colors are blended with the background color; see
@@ -48,6 +53,17 @@ These colors are blended with the background color; see
 Must be between 0 and 1."
   :type 'float
   :group 'magit-blame)
+(defcustom mbc/steps 32
+  "Number of color steps to span from oldest to newest.
+Maximum is 1000."
+  :type 'natnum
+  :group 'magit-blame
+  :set #'mbc/-custom-set)
+
+(defun mbc/-face (frac)
+  "Return the appropriate face for age fraction FRAC (0-1)."
+  (intern (format "magit-blame-color-by-age-%03d"
+		  (round (* frac (1- mbc/steps))))))
 
 (defun mbc/-blend (from to frac back)
   "Select a color at FRAC from FROM to TO, blending with background BACK.
@@ -66,9 +82,6 @@ Defaults to the full buffer."
 	   (hformat (magit-blame--style-get 'heading-format))
 	   (string-key (list hformat '(magit-blame-heading default)))
 	   (age-key (if (string-search "%C" hformat) "committer-time" "author-time"))
-	   (back-col (color-name-to-rgb (face-background 'magit-blame-heading)))
-	   (from-col (color-name-to-rgb (car mbc/colors)))
-	   (to-col (color-name-to-rgb (cdr mbc/colors)))
 	   age-min age-rng)
       (cl-loop for v being the hash-values of magit-blame-cache
 	       for tmsstr = (cdr (assoc age-key v))
@@ -77,25 +90,26 @@ Defaults to the full buffer."
 	       finally (setq age-min mn age-rng (max 1 (- mx mn))))
       (dolist (ov (overlays-in (or beg (point-min))
                                (or end (point-max))))
+	;; Full Heading or Date String in heading
 	(when-let* (( (overlay-get ov 'magit-blame-heading))
 		    (revinfo (overlay-get ov 'magit-blame-revinfo))
-		    (string (cdr (assoc string-key revinfo)))
-		    ( (not (gethash string seen)))
-		    (age-str (cdr (assoc age-key revinfo))))
-	  (puthash string t seen)
-	  (let* ((age-frac (/ (float (- (string-to-number age-str) age-min)) age-rng))
-		 (age-color (mbc/-blend from-col to-col age-frac back-col)))
+		    (age-str (cdr (assoc age-key revinfo)))
+		    (face (mbc/-face (/ (float (- (string-to-number age-str) age-min))
+					age-rng))))
+	  (when mbc/fringe
+	    (overlay-put ov 'line-prefix
+			 (propertize "x" 'display `((left-fringe mbc/fringe-bitmap ,face)))))
+	  (when-let* ((string (cdr (assoc string-key revinfo)))
+		      ( (not (gethash string seen))))
+	    (puthash string t seen)
 	    (if mbc/full-heading
-		(magit--add-face-text-property
-		 0 (length string) `(:background ,age-color :extend t) nil string)
+		(magit--add-face-text-property 0 (length string) face nil string)
 	      (cl-loop
 	       for i being the intervals of string property 'font-lock-face
 	       for props = (get-text-property (car i) 'font-lock-face string)
 	       if (memq 'magit-blame-date props) do
-	       (if (eq (cadr props) :background)
-		   (setcdr (car props) age-color)
-		 (put-text-property (car i) (cdr i) 'font-lock-face
-				    (cons `(:background ,age-color) props) string))))))))))
+	       (put-text-property (car i) (cdr i) 'font-lock-face
+				  (cons face props) string)))))))))
 
 (defun mbc/-sentinel (process &rest _r)
   "A sentinel for PROCESS to update `magit-blame' heading colors by age."
@@ -105,12 +119,30 @@ Defaults to the full buffer."
       (mbc/update)
       (font-lock-flush))))
 
+(defun mbc/define-faces (&optional redefine)
+  "Define the blame color faces, if not defined or REDEFINE is non-nil.
+Also defines the fringe bitmap."
+  (when (or redefine (not (facep 'mbc/0)))
+    (define-fringe-bitmap 'mbc/fringe-bitmap (vconcat '(0)) nil nil '(top t))
+    (let ((from-col (color-name-to-rgb (car mbc/colors)))
+	  (to-col (color-name-to-rgb (cdr mbc/colors)))
+	  (back-col (color-name-to-rgb (face-background 'magit-blame-heading))))
+      (dotimes (i mbc/steps)
+	(let ((face (intern (format "magit-blame-color-by-age-%03d" i))))
+	  (make-face face)
+	  (set-face-extend face t)
+	  (set-face-background face (mbc/-blend from-col to-col
+						(/ (float i) (1- mbc/steps))
+						back-col)))))))
+
 (define-minor-mode mbc/mode
   "Color `magit-blame' headers by age."
   :global t
   :group 'magit-blame
   (if mbc/mode
-      (advice-add #'magit-blame-process-sentinel :after #'mbc/-sentinel)
+      (progn
+	(advice-add #'magit-blame-process-sentinel :after #'mbc/-sentinel)
+	(mbc/define-faces))
     (advice-remove #'magit-blame-process-sentinel #'mbc/-sentinel)))
 
 (provide 'magit-blame-color-by-age)
