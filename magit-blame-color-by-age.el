@@ -4,7 +4,7 @@
 ;; Author: J.D. Smith
 ;; Homepage: https://github.com/jdtsmith/magit-blame-color-by-age
 ;; Package-Requires: ((emacs "29.1") (magit))
-;; Version: 0.1.2
+;; Version: 0.1.3
 ;; Keywords: convenience
 
 ;; magit-blame-color-by-age is free software: you can redistribute it
