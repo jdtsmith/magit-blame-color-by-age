@@ -1,6 +1,6 @@
 # magit-blame-color-by-age
 
-A small package to color-code `magit-blame` headers by their age.
+A small package to color-code `magit-blame` headers and the fringe by their age.
 
 ## Screenshots
 
@@ -9,6 +9,9 @@ A small package to color-code `magit-blame` headers by their age.
 
 ### Final default `magit-blame` style, with fringe coloring
 <img width="514" alt="image" src="https://github.com/user-attachments/assets/8ba3154e-1425-4db1-b810-2088e980df09" />
+
+### Full heading color
+![image](https://github.com/user-attachments/assets/43bed7ea-ef2e-4323-b99a-378c90f9c591)
 
 
 > [!NOTE]
