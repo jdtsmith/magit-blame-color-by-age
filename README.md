@@ -21,7 +21,6 @@ Not on any package archive; install using `:vc`.  Enable like:
 ```elisp
 (use-package magit-blame-color-by-age
   :vc (:url "https://github.com/jdtsmith/magit-blame-color-by-age")
-  :after magit
   :hook magit-blame
   ;; if you'd like date first on heading lines:
   ;; :config (setf (alist-get 'heading-format (alist-get 'headings magit-blame-styles)) "%C %-20a %s
