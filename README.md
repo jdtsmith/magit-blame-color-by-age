@@ -28,5 +28,5 @@ Not on any package archive; install using `:vc`.  Enable like:
   ;; :config (setf (alist-get 'heading-format (alist-get 'headings magit-blame-styles)) "%C %-20a %s\n")
   ;; For full heading coloring
   ;; :custom (magit-blame-color-by-age-full-heading t)
-")
+)
 ```
