@@ -66,7 +66,7 @@ Defaults to the full buffer."
 	   (hformat (magit-blame--style-get 'heading-format))
 	   (string-key (list hformat '(magit-blame-heading default)))
 	   (age-key (if (string-search "%C" hformat) "committer-time" "author-time"))
-	   (back-col (color-name-to-rgb (face-background 'magit-blame-heading)))
+	   (back-col (color-name-to-rgb (face-background 'magit-blame-heading nil t)))
 	   (from-col (color-name-to-rgb (car mbc/colors)))
 	   (to-col (color-name-to-rgb (cdr mbc/colors)))
 	   age-min age-rng)
