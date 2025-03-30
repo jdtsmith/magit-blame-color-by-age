@@ -30,6 +30,11 @@
 (require 'magit-blame)
 (require 'magit-section)
 
+(defun mbc/-custom-set (sym val)
+  "Set SYM to VAL and redefine blame faces."
+  (set-default-toplevel-value sym val)
+  (mbc/define-faces t))
+
 (defcustom mbc/full-heading nil
   "Whether to color the background of the entire header.
 If nil, only the data within the heading is affected."
@@ -46,13 +51,16 @@ If nil, only the data within the heading is affected."
 These colors are blended with the background color; see
 `magit-blame-color-by-age-frac'"
   :type '(cons string string)
-  :group 'magit-blame)
+  :group 'magit-blame
+  :set #'mbc/-custom-set)
 
-(defcustom mbc/frac 0.35
+(defcustom mbc/frac 0.4
   "Fractional contribution to heading background color of age-based color.
 Must be between 0 and 1."
   :type 'float
-  :group 'magit-blame)
+  :group 'magit-blame
+  :set #'mbc/-custom-set)
+
 (defcustom mbc/steps 32
   "Number of color steps to span from oldest to newest.
 Maximum is 1000."
