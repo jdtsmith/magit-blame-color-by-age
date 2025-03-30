@@ -106,6 +106,7 @@ Also defines the fringe bitmap."
 (defun mbc/update (&optional beg end)
   "Update `magit-blame' headings between BEG and END with age-based colors.
 Defaults to the full buffer."
+  (interactive)
   (save-restriction
     (widen)
     (let* ((seen (make-hash-table))
