@@ -138,9 +138,17 @@ Defaults to the full buffer."
 	      (cl-loop
 	       for i being the intervals of string property 'font-lock-face
 	       for props = (get-text-property (car i) 'font-lock-face string)
+	       for has-face = (string-prefix-p "magit-blame-color-by-age-"
+					       (symbol-name (car props)))
 	       if (memq 'magit-blame-date props) do
-	       (put-text-property (car i) (cdr i) 'font-lock-face
-				  (cons face props) string)))))))))
+	       (if has-face
+		   (setcar props face)
+		 (put-text-property (car i) (cdr i) 'font-lock-face
+				    (cons face props) string))
+	       else do
+	       (when has-face
+		 (put-text-property (car i) (cdr i) 'font-lock-face
+				    (cdr props) string))))))))))
 
 (defun mbc/-sentinel (process &rest _r)
   "A sentinel for PROCESS to update `magit-blame' heading colors by age."
