@@ -14,10 +14,9 @@ A small package to color-code `magit-blame` headers and the fringe by age.
 <img width="558" alt="image" src="https://github.com/user-attachments/assets/90120a3b-e4c9-4ad7-9450-1bcf7f76425b" />
 
 > [!NOTE]
-> Large files take some time to fully git-blame.  Magit's "quick start" shows visible blame headers quickly; these will be re-colored as the full blame completes.
+> Large files with deep commit histories take some time to fully git-blame.  Magit's "quick start" shows visible blame headers quickly; these will be re-colored as the full blame completes.
 
 ## Config 
-
 Not on any package archive; install using `:vc`.  Enable like:
 
 ```elisp
