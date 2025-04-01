@@ -4,7 +4,7 @@
 ;; Author: J.D. Smith
 ;; Homepage: https://github.com/jdtsmith/magit-blame-color-by-age
 ;; Package-Requires: ((emacs "29.1") (magit))
-;; Version: 0.1.3
+;; Version: 0.1.4
 ;; Keywords: convenience
 
 ;; magit-blame-color-by-age is free software: you can redistribute it
@@ -111,47 +111,49 @@ Defaults to the full buffer."
   (interactive)
   (save-restriction
     (widen)
-    (let* ((seen (make-hash-table))
-	   (hformat (magit-blame--style-get 'heading-format))
-	   (string-key (list hformat '(magit-blame-heading default)))
-	   (age-key (if (string-search "%C" hformat) "committer-time" "author-time"))
-	   age-min age-rng)
-      (cl-loop for v being the hash-values of magit-blame-cache
-	       for tmsstr = (cdr (assoc age-key v))
-	       for tm = (and tmsstr (string-to-number tmsstr))
-	       if tm maximize tm into mx and minimize tm into mn
-	       finally (setq age-min mn age-rng (max 1 (- mx mn))))
-      (dolist (ov (overlays-in (or beg (point-min))
-                               (or end (point-max))))
-	;; Full Heading or Date String in heading
-	(when-let* (( (overlay-get ov 'magit-blame-heading))
-		    (revinfo (overlay-get ov 'magit-blame-revinfo))
-		    (age-str (cdr (assoc age-key revinfo)))
-		    (face (mbc/-face (/ (float (- (string-to-number age-str) age-min))
-					age-rng))))
-	  (when mbc/fringe
-	    (overlay-put ov 'line-prefix
-			 (propertize "x" 'display
-				     `((left-fringe mbc/fringe-bitmap ,face)))))
-	  (when-let* ((string (cdr (assoc string-key revinfo)))
-		      ( (not (gethash string seen))))
-	    (puthash string t seen)
-	    (if mbc/full-heading
-		(magit--add-face-text-property 0 (length string) face nil string)
-	      (cl-loop
-	       for i being the intervals of string property 'font-lock-face
-	       for props = (get-text-property (car i) 'font-lock-face string)
-	       for has-face = (string-prefix-p "magit-blame-color-by-age-"
-					       (symbol-name (car props)))
-	       if (memq 'magit-blame-date props) do
-	       (if has-face
-		   (setcar props face)
-		 (put-text-property (car i) (cdr i) 'font-lock-face
-				    (cons face props) string))
-	       else do
-	       (when has-face
-		 (put-text-property (car i) (cdr i) 'font-lock-face
-				    (cdr props) string))))))))))
+    (when-let* ((hformat (magit-blame--style-get 'heading-format)))
+	(let* ((seen (make-hash-table))
+	       (string-key (list hformat '(magit-blame-heading default)))
+	       (age-key (if (string-search "%C" hformat) "committer-time"
+			  "author-time"))
+	       age-min age-rng)
+	  (cl-loop for v being the hash-values of magit-blame-cache
+		   for tmsstr = (cdr (assoc age-key v))
+		   for tm = (and tmsstr (string-to-number tmsstr))
+		   if tm maximize tm into mx and minimize tm into mn
+		   finally (setq age-min mn age-rng (max 1 (- mx mn))))
+	  (dolist (ov (overlays-in (or beg (point-min))
+				   (or end (point-max))))
+	    ;; Full Heading or Date String in heading
+	    (when-let* (( (overlay-get ov 'magit-blame-heading))
+			(revinfo (overlay-get ov 'magit-blame-revinfo))
+			(age-str (cdr (assoc age-key revinfo)))
+			(face (mbc/-face
+			       (/ (float (- (string-to-number age-str) age-min))
+				  age-rng))))
+	      (when mbc/fringe
+		(overlay-put ov 'line-prefix
+			     (propertize "x" 'display
+					 `((left-fringe mbc/fringe-bitmap ,face)))))
+	      (when-let* ((string (cdr (assoc string-key revinfo)))
+			  ( (not (gethash string seen))))
+		(puthash string t seen)
+		(if mbc/full-heading
+		    (magit--add-face-text-property 0 (length string) face nil string)
+		  (cl-loop
+		   for i being the intervals of string property 'font-lock-face
+		   for props = (get-text-property (car i) 'font-lock-face string)
+		   for has-face = (string-prefix-p "magit-blame-color-by-age-"
+						   (symbol-name (car props)))
+		   if (memq 'magit-blame-date props) do
+		   (if has-face
+		       (setcar props face)
+		     (put-text-property (car i) (cdr i) 'font-lock-face
+					(cons face props) string))
+		   else do
+		   (when has-face
+		     (put-text-property (car i) (cdr i) 'font-lock-face
+					(cdr props) string)))))))))))
 
 (defun mbc/-sentinel (process &rest _r)
   "A sentinel for PROCESS to update `magit-blame' heading colors by age."
