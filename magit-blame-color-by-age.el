@@ -34,6 +34,12 @@
 (require 'magit-blame)
 (require 'magit-section)
 
+(defun mbc/-custom-set (sym val)
+  "Set SYM to VAL and redefine blame faces."
+  (set-default-toplevel-value sym val)
+  (when (fboundp 'mbc/define-faces)
+    (mbc/define-faces t)))
+
 (defcustom mbc/full-heading nil
   "Whether to color the background of the entire header.
 If nil, only the date information within the heading is affected."
@@ -98,12 +104,6 @@ Also defines the fringe bitmap."
 	  (set-face-background face (mbc/-blend from-col to-col
 						(/ (float i) (1- mbc/steps))
 						back-col)))))))
-
-(defun mbc/-custom-set (sym val)
-  "Set SYM to VAL and redefine blame faces."
-  (set-default-toplevel-value sym val)
-  (when (fboundp 'mbc/define-faces)
-    (mbc/define-faces t)))
 
 (defun mbc/update (&optional beg end)
   "Update `magit-blame' headings between BEG and END with age-based colors.
