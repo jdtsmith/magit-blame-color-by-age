@@ -163,6 +163,7 @@ Defaults to the full buffer."
       (mbc/update)
       (font-lock-flush))))
 
+;;;###autoload
 (define-minor-mode mbc/mode
   "Color `magit-blame' headers by age."
   :global t
