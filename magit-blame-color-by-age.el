@@ -133,7 +133,7 @@ Defaults to the full buffer."
 				  age-rng))))
 	      (when mbc/fringe
 		(overlay-put ov 'line-prefix
-			     (propertize "x" 'display
+			     (propertize " " 'display
 					 `((left-fringe mbc/fringe-bitmap ,face)))))
 	      (when-let* ((string (cdr (assoc string-key revinfo)))
 			  ( (not (gethash string seen))))
