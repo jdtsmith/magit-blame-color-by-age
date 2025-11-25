@@ -4,7 +4,7 @@
 ;; Author: J.D. Smith
 ;; Homepage: https://github.com/jdtsmith/magit-blame-color-by-age
 ;; Package-Requires: ((emacs "29.1") (magit))
-;; Version: 0.1.4
+;; Version: 0.2.0
 ;; Keywords: convenience
 
 ;; magit-blame-color-by-age is free software: you can redistribute it
@@ -29,6 +29,7 @@
 ;; options.
 
 ;;; Code:
+(require 'font-lock)
 (require 'cl-lib)
 (require 'color)
 (require 'magit-blame)
@@ -47,7 +48,8 @@ If nil, only the date information within the heading is affected."
   :group 'magit-blame)
 
 (defcustom mbc/fringe t
-  "Whether to color the fringe of the block."
+  "Whether to color the fringe of the block.
+This is especially useful for styles with no header."
   :type 'boolean
   :group 'magit-blame)
 
@@ -105,63 +107,90 @@ Also defines the fringe bitmap."
 						(/ (float i) (1- mbc/steps))
 						back-col)))))))
 
-(defun mbc/update (&optional beg end)
-  "Update `magit-blame' headings between BEG and END with age-based colors.
-Defaults to the full buffer."
+;; This needs to run asynchronously, perhaps as a font-lock backend
+;; (e.g. a font-lock-fontify-region-function).  So whenever we attempt
+;; to fontify a region, we also check for and age-color the magit
+;; overlays.  Then the sentinel can just flush everything.  For some
+;; reason it runs twice, once quickly and once again.  I think magit
+;; must emphasize the local region in its first run.  Look into.
+;; Can take 10s of seconds to minutes in a big files like xdisp.c
+
+(cl-defstruct (mbc/info (:constructor nil) (:constructor mbc/info))
+  "Ages of the chunks in the buffer."
+  age-min age-range age-key str-key (seen (make-hash-table)))
+
+(defvar-local mbc/-info nil)
+
+(defun mbc/update-info ()
+  "Update `magit-blame' ages and keys in the buffer.
+Also creates a new seen entity hash."
   (interactive)
-  (save-restriction
-    (widen)
-    (let* ((seen (make-hash-table))
-	   (hformat (let-alist magit-blame-styles .headings.heading-format))
-	   (string-key (list hformat '(magit-blame-heading default)))
-	   (age-key (if (string-search "%C" hformat) "committer-time"
-		      "author-time"))
-	   age-min age-rng)
-      (cl-loop for v being the hash-values of magit-blame-cache
-	       for tmsstr = (cdr (assoc age-key v))
-	       for tm = (and tmsstr (string-to-number tmsstr))
-	       if tm maximize tm into mx and minimize tm into mn
-	       finally (setq age-min mn age-rng (max 1 (- mx mn))))
-      (dolist (ov (overlays-in (or beg (point-min))
-			       (or end (point-max))))
-	;; Full Heading or Date String in heading
-	(when-let* (( (overlay-get ov 'magit-blame-heading))
-		    (revinfo (overlay-get ov 'magit-blame-revinfo))
-		    (age-str (cdr (assoc age-key revinfo)))
-		    (face (mbc/-face
-			   (/ (float (- (string-to-number age-str) age-min))
-			      age-rng))))
-	  (when mbc/fringe
-	    (overlay-put ov 'line-prefix
-			 (propertize " " 'display
-				     `((left-fringe mbc/fringe-bitmap ,face)))))
-	  (when-let* ((string (cdr (assoc string-key revinfo)))
-		      ( (not (gethash string seen))))
-	    (puthash string t seen)
-	    (if mbc/full-heading
-		(magit--add-face-text-property 0 (length string) face nil string)
-	      (cl-loop
-	       for i being the intervals of string property 'font-lock-face
-	       for props = (get-text-property (car i) 'font-lock-face string)
-	       for has-face = (string-prefix-p "magit-blame-color-by-age-"
-					       (symbol-name (car props)))
-	       if (memq 'magit-blame-date props) do
-	       (if has-face
-		   (setcar props face)
-		 (put-text-property (car i) (cdr i) 'font-lock-face
-				    (cons face props) string))
-	       else do
-	       (when has-face
-		 (put-text-property (car i) (cdr i) 'font-lock-face
-				    (cdr props) string))))))))))
+  (let* ((hformat (let-alist magit-blame-styles .headings.heading-format))
+	 (str-key (list hformat '(magit-blame-heading default)))
+	 (age-key (if (string-search "%C" hformat) "committer-time"
+		    "author-time")))
+    (cl-loop for v being the hash-values of magit-blame-cache
+	     for tmsstr = (cdr (assoc age-key v))
+	     for tm = (and tmsstr (string-to-number tmsstr))
+	     if tm maximize tm into mx and minimize tm into mn
+	     finally (setq mbc/-info
+			   (mbc/info :age-min mn
+				     :age-range (max 1 (- mx mn))
+				     :age-key age-key
+				     :str-key str-key)))))
+
+(defun mbc/-fontify-region (limit)
+  "Apply chunk headline overlay fontification from point to LIMIT.
+To be added as a font-lock keyword (although it works on `magit-blame's
+overlays, not faces)."
+  (pcase-let* (((cl-struct mbc/info
+			   age-min age-range age-key str-key seen)
+		mbc/-info))
+    (dolist (ov (overlays-in (point) limit))
+      ;; Full Heading or Date String in heading
+      (when-let* (((overlay-get ov 'magit-blame-heading))
+		  (revinfo (overlay-get ov 'magit-blame-revinfo))
+		  (age-str (cdr (assoc age-key revinfo)))
+		  (face (mbc/-face
+			 (/ (float (- (string-to-number age-str) age-min)) age-range))))
+	(when mbc/fringe
+	  (overlay-put ov 'line-prefix
+		       (propertize " " 'display
+				   `((left-fringe mbc/fringe-bitmap ,face)))))
+	(when-let* ((string (cdr (assoc str-key revinfo)))
+		    ((not (gethash string seen))))
+	  (puthash string t seen)
+	  (if mbc/full-heading
+	      (magit--add-face-text-property 0 (length string) face nil string)
+	    (cl-loop
+	     for i being the intervals of string property 'font-lock-face
+	     for props = (get-text-property (car i) 'font-lock-face string)
+	     for has-face = (string-prefix-p "magit-blame-color-by-age-"
+					     (symbol-name (car props)))
+	     if (memq 'magit-blame-date props) do
+	     (if has-face
+		 (setcar props face) 	; replace the face
+	       (put-text-property (car i) (cdr i) 'font-lock-face
+				  (cons face props) string))
+	     else do
+	     (when has-face
+	       (put-text-property (car i) (cdr i) 'font-lock-face
+				  (cdr props) string))))))))
+  nil)
 
 (defun mbc/-sentinel (process &rest _r)
   "A sentinel for PROCESS to update `magit-blame' heading colors by age."
   (when (and (eq (process-status process) 'exit)
 	     (zerop (process-exit-status process)))
     (with-current-buffer (process-get process 'command-buf)
-      (mbc/update)
+      (mbc/update-info)
       (font-lock-flush))))
+
+(defun mbc/-setup-font-lock ()
+  "Setup or teardown magit blame age coloring."
+  (if magit-blame-mode
+      (font-lock-add-keywords nil '(mbc/-fontify-region))
+    (font-lock-remove-keywords nil '(mbc/-fontify-region))))
 
 ;;;###autoload
 (define-minor-mode mbc/mode
@@ -170,12 +199,15 @@ Defaults to the full buffer."
   :group 'magit-blame
   (if mbc/mode
       (progn
+	(add-hook 'magit-blame-mode-hook #'mbc/-setup-font-lock)
 	(advice-add #'magit-blame-process-sentinel :after #'mbc/-sentinel)
 	(mbc/define-faces))
-    (advice-remove #'magit-blame-process-sentinel #'mbc/-sentinel)))
+    (advice-remove #'magit-blame-process-sentinel #'mbc/-sentinel)
+    (remove-hook 'magit-blame-mode-hook #'mbc/-setup-font-lock)))
 
 (provide 'magit-blame-color-by-age)
 ;;; magit-blame-color-by-age.el ends here
 ;; Local Variables:
 ;; read-symbol-shorthands: (("mbc/" . "magit-blame-color-by-age-"))
+;; package-lint--sane-prefixes: "^mbc/"
 ;; End:
