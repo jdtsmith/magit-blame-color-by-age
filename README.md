@@ -8,8 +8,9 @@ A small package to color-code `magit-blame` headers and the fringe by age.
 <img width="589" alt="image" src="https://github.com/user-attachments/assets/475b992b-9431-47d4-a528-e9417126d6c3" />
 
 ### Final default `magit-blame` style, with fringe coloring
-<img width="847" height="757" alt="image" src="https://github.com/user-attachments/assets/6a21a8b2-4c17-469a-8ba4-74992f348ac6" />
 
+Also suppresses the `magit-blame` separator lines.
+<img width="847" height="757" alt="image" src="https://github.com/user-attachments/assets/6a21a8b2-4c17-469a-8ba4-74992f348ac6" />
 
 ### Full heading and fringe coloring
 <img width="847" height="757" alt="image" src="https://github.com/user-attachments/assets/932e8961-d851-4eb1-a424-3ed387827d55" />
