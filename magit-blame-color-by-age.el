@@ -48,7 +48,7 @@ If nil, only the date information within the heading is affected."
   :group 'magit-blame)
 
 (defcustom mbc/fringe t
-  "Whether to color the fringe of the block.
+  "Whether to color the fringe of the block on GUI.
 This is especially useful for styles with no header."
   :type 'boolean
   :group 'magit-blame)
@@ -153,7 +153,7 @@ overlays, not faces)."
 		  (age-str (cdr (assoc age-key revinfo)))
 		  (face (mbc/-face
 			 (/ (float (- (string-to-number age-str) age-min)) age-range))))
-	(when mbc/fringe
+	(when (and mbc/fringe (display-graphic-p))
 	  (overlay-put ov 'line-prefix
 		       (propertize " " 'display
 				   `((left-fringe mbc/fringe-bitmap ,face)))))
